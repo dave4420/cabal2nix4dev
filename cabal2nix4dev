@@ -1,0 +1,41 @@
+#!/bin/bash
+# <http://redsymbol.net/articles/unofficial-bash-strict-mode/>
+set -euo pipefail
+IFS=$'\n\t'
+
+die() {
+    printf "$@" >&2
+    exit 2
+}
+
+ensure-single() {
+    case "${#@}" in
+        1)  die 'No %s found\n' "$1";;
+        2)  return 0;;
+        *)  die 'More than one %s found: %s\n' "$1" "${*:2}";;
+    esac
+}
+
+
+f_cabal=(*.cabal)
+ensure-single '*.cabal' "${f_cabal[@]}"
+
+n_package="$(grep -iE '^name:' "$f_cabal" | sed -e 's/  */\t/' | cut -f 2)"
+if [[ -z "$n_package" ]] ; then die "Can't find cabal project name\n" ; fi
+
+cabal2nix --sha256=deleteme "$f_cabal" |
+perl -pe 's<\bsha256\s*=.*;><src = ./.;>' >default.nix
+
+cat <<EOF >shell.nix
+let
+  pkgs = import <nixpkgs> {};
+  haskellPackages = pkgs.haskellPackages.override {
+    extension = self: super: {
+      $n_package = self.callPackage ./. {};
+    };
+  };
+
+in pkgs.lib.overrideDerivation haskellPackages.$n_package (attrs: {
+     buildInputs = [ haskellPackages.cabalInstall ] ++ attrs.buildInputs;
+   })
+EOF
