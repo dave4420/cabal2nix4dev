@@ -1,5 +1,5 @@
 #!/usr/bin/env nix-shell
-#!nix-shell -i bash -p cabal2nix
+#!nix-shell --pure -i bash -p cabal2nix perl
 # <http://redsymbol.net/articles/unofficial-bash-strict-mode/>
 set -euo pipefail
 IFS=$'\n\t'
